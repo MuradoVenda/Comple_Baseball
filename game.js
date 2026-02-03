@@ -4,9 +4,8 @@ canvas.width = 400; canvas.height = 300;
 
 let score = 0, strikes = 0, combo = 0, state = "WAITING", swingTimer = 0, selectedBat = 'normal';
 let timer = 0, hitStopTimer = 0, praiseMsg = "";
-// 초기 속도: 1.45 -> 1.9 (약 30% 상향)
 let ball = { x: 450, y: 180, num: 0, speed: 1.9, isMagic: false, type: 'normal', offset: 0 };
-let fireParticles = [], audioCtx = null, gameStarted = false;
+let fireParticles = [], confetti = [], audioCtx = null, gameStarted = false;
 
 function selectBat(type) {
     if (gameStarted) return;
@@ -17,21 +16,41 @@ function selectBat(type) {
     gameStarted = true; state = "PLAYING"; resetBall();
 }
 
+// 휘파람 및 타격음 통합 사운드 함수
 function playSound(type) {
     if (!audioCtx || audioCtx.state !== 'running') return;
+
+    if (type === 'magicHit') {
+        // 여러 개의 휘파람 소리 생성
+        for(let i=0; i<3; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            const freq = 800 + (i * 400); // 다양한 높낮이
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (i * 0.05));
+            osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.1 + (i * 0.1));
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.8, audioCtx.currentTime + 0.3 + (i * 0.1));
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+        }
+    }
+
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
-    if (type === 'homerun') {
+
+    if (type === 'homerun' || type === 'magicHit') {
         if (selectedBat === 'chicken') {
             osc.type = 'sawtooth'; osc.frequency.setValueAtTime(900, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         } else {
             osc.type = 'triangle'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
-            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
         }
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
     } else {
         osc.type = 'sine'; osc.frequency.setValueAtTime(120, audioCtx.currentTime);
@@ -40,28 +59,33 @@ function playSound(type) {
     osc.start(); osc.stop(audioCtx.currentTime + 0.3);
 }
 
+// 콘페티 생성 함수
+function createConfetti() {
+    for (let i = 0; i < 40; i++) {
+        confetti.push({
+            x: 80, y: 180,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.8) * 12,
+            color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+            size: Math.random() * 6 + 4,
+            life: 1.0
+        });
+    }
+}
+
 function drawField() {
-    // 배경: 하늘
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 150);
     skyGrad.addColorStop(0, "#2980b9"); skyGrad.addColorStop(1, "#6dd5fa");
     ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, 400, 300);
-    // 구름
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.beginPath(); ctx.arc(300, 50, 20, 0, Math.PI*2); ctx.arc(320, 50, 25, 0, Math.PI*2); ctx.fill();
-    // 왼쪽 갈색 건물 (창문 4개 포함)
     ctx.fillStyle = "#8d3030"; ctx.fillRect(0, 30, 90, 120); 
-    ctx.fillStyle = "#5d2020"; 
-    ctx.fillRect(10, 45, 15, 15); ctx.fillRect(40, 45, 15, 15); 
-    ctx.fillRect(10, 75, 15, 15); ctx.fillRect(40, 75, 15, 15);
-    // 오른쪽 빨간 건물
+    ctx.fillStyle = "#5d2020"; ctx.fillRect(10, 45, 15, 15); ctx.fillRect(40, 45, 15, 15); ctx.fillRect(10, 75, 15, 15); ctx.fillRect(40, 75, 15, 15);
     ctx.fillStyle = "#a54040"; ctx.fillRect(320, 20, 80, 130);
-    // 도로 및 중앙 점선
     ctx.fillStyle = "#333333"; ctx.fillRect(0, 150, 400, 150);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(180, 150, 5, 150);
-    // 자동차 및 바퀴
     ctx.fillStyle = "#1a5276"; ctx.fillRect(230, 135, 75, 25);
     ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(245, 160, 7, 0, Math.PI*2); ctx.arc(290, 160, 7, 0, Math.PI*2); ctx.fill();
-    // 타석 박스
     ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 3; ctx.strokeRect(65, 210, 40, 40);
 }
 
@@ -70,9 +94,7 @@ function drawPlayer(x, y) {
     ctx.fillStyle = "#34495e"; ctx.fillRect(-12, 0, 8, 24); ctx.fillRect(2, 0, 8, 24);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(-15, -30, 30, 30);
     ctx.fillStyle = "#ffdbac"; ctx.fillRect(-8, -46, 16, 16);
-    // 파란색 야구 모자 (챙 포함)
     ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3);
-    
     ctx.save(); ctx.translate(0, -15);
     if (swingTimer > 0) {
         const progress = (15 - swingTimer) / 15;
@@ -84,16 +106,10 @@ function drawPlayer(x, y) {
     ctx.restore(); ctx.restore();
 }
 
-function createFire(x, y, intensity, isMega = false) {
-    for(let i=0; i < intensity; i++) {
-        fireParticles.push({ x: x + (Math.random() - 0.5) * (isMega ? 35 : 10), y: y, vx: (Math.random() - 0.5) * 2, vy: -Math.random() * 5 - 2, life: 1.0, size: Math.random() * 10 + 5 });
-    }
-}
-
 function update() {
     if (!gameStarted) return;
     if (hitStopTimer > 0) {
-        hitStopTimer--; // iPad 멈춤 방지를 위한 타이머 업데이트
+        hitStopTimer--;
     } else {
         if (swingTimer > 0) swingTimer--;
         if (state === "PLAYING") {
@@ -105,8 +121,12 @@ function update() {
             timer--; if (timer <= 0) resetBall();
         }
     }
-    if (combo >= 5) createFire(80, 210, combo >= 15 ? 3 : 1, combo >= 15);
+    // 입자 업데이트
     fireParticles.forEach((p, i) => { p.y += p.vy; p.life -= 0.03; if(p.life <= 0) fireParticles.splice(i, 1); });
+    confetti.forEach((c, i) => { 
+        c.x += c.vx; c.y += c.vy; c.vy += 0.4; c.life -= 0.015;
+        if(c.life <= 0) confetti.splice(i, 1); 
+    });
 }
 
 function draw() {
@@ -115,6 +135,10 @@ function draw() {
     fireParticles.forEach(p => {
         ctx.fillStyle = `rgba(255, ${Math.floor(200 * p.life)}, 0, ${p.life})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
+    });
+    confetti.forEach(c => {
+        ctx.fillStyle = c.color; ctx.globalAlpha = c.life;
+        ctx.fillRect(c.x, c.y, c.size, c.size); ctx.globalAlpha = 1.0;
     });
     drawPlayer(80, 230);
     if (gameStarted && (state === "PLAYING" || state === "HOMERUN")) {
@@ -128,7 +152,9 @@ function draw() {
     }
     if (hitStopTimer > 0) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(0, 0, 400, 300);
-        ctx.fillStyle = "#e74c3c"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.fillText(praiseMsg, 200, 150);
+        ctx.fillStyle = "#f1c40f"; ctx.font = "bold 50px Arial"; ctx.textAlign = "center";
+        ctx.shadowColor = "black"; ctx.shadowBlur = 10;
+        ctx.fillText(praiseMsg, 200, 150); ctx.shadowBlur = 0;
     }
 }
 
@@ -137,9 +163,18 @@ function handleInput(n) {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     swingTimer = 15;
     if (ball.num + n === 10) {
-        score += 10; combo++; updateUI(); playSound('homerun');
+        if (ball.isMagic) {
+            score += 30; // 마구 보너스
+            praiseMsg = "NICE!";
+            hitStopTimer = 40;
+            createConfetti();
+            playSound('magicHit');
+        } else {
+            score += 10;
+            playSound('homerun');
+        }
+        combo++; updateUI();
         state = "HOMERUN"; timer = 50;
-        if (ball.isMagic) { hitStopTimer = 30; praiseMsg = "AMAZING!"; }
     } else startMiss();
 }
 
