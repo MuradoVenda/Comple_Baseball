@@ -4,7 +4,7 @@ canvas.width = 400; canvas.height = 300;
 
 let score = 0, strikes = 0, combo = 0, state = "WAITING", swingTimer = 0, selectedBat = 'normal';
 let timer = 0, hitStopTimer = 0, praiseMsg = "";
-let ball = { x: 450, y: 180, num: 0, speed: 1.15, isMagic: false, type: 'normal', offset: 0 };
+let ball = { x: 450, y: 180, num: 0, speed: 1.45, isMagic: false, type: 'normal', offset: 0 };
 let fireParticles = [], audioCtx = null, gameStarted = false;
 
 function selectBat(type) {
@@ -21,18 +21,13 @@ function playSound(type) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
-
     if (type === 'homerun') {
         if (selectedBat === 'chicken') {
-            // [치킨] 삐익-! 고음
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(900, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.1);
             gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         } else {
-            // [일반/곡괭이] 경쾌한 따악!
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
             gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
         }
@@ -86,7 +81,7 @@ function createFire(x, y, intensity, isMega = false) {
 function update() {
     if (!gameStarted) return;
     if (hitStopTimer > 0) {
-        hitStopTimer--; // 멈춤 시간 동안에도 루프는 계속 돌아야 iPad 프리징이 안생김
+        hitStopTimer--;
     } else {
         if (swingTimer > 0) swingTimer--;
         if (state === "PLAYING") {
@@ -143,7 +138,7 @@ function resetBall() {
     let r = Math.random();
     ball.isMagic = r < 0.3;
     ball.type = ball.isMagic ? (r < 0.1 ? 'giant' : (r < 0.2 ? 'sparkle' : 'normal')) : 'normal';
-    ball.speed *= 1.04; state = "PLAYING";
+    ball.speed *= 1.05; state = "PLAYING";
 }
 function updateUI() { document.getElementById("scoreText").innerText = score; document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; document.getElementById("levelText").innerText = ball.speed.toFixed(1); }
 function loop() { update(); draw(); requestAnimationFrame(loop); }
