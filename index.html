@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>10-MAKER 홈런레이스</title>
+    <style>
+        /* 터치 및 확대 방지 설정 */
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        body { 
+            background: #111; 
+            color: #fff; 
+            font-family: 'Courier New', monospace;
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container { 
+            width: 100%; 
+            max-width: 500px; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom) 10px;
+        }
+
+        .status-bar { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 8px 5px; 
+            font-size: 14px;
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        /* 게임 화면 비중 확대 (flex: 2.5) */
+        canvas { 
+            width: 100%; 
+            flex: 2.5;
+            background: #000; 
+            border: 3px solid #444; 
+            image-rendering: pixelated;
+            border-radius: 4px;
+        }
+
+        /* 키패드 비중 축소 (flex: 1.2) */
+        #keypad { 
+            flex: 1.2; 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 8px; 
+            padding: 12px 0;
+        }
+
+        .num-btn {
+            border: none;
+            border-radius: 10px;
+            font-size: 26px; 
+            font-weight: bold; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.05s, background 0.1s;
+            box-shadow: 0 4px #000;
+        }
+
+        /* 홀수 버튼: 어두운 배경 + 초록 글씨 */
+        .btn-odd {
+            background: #222;
+            color: #0f0;
+        }
+
+        /* 짝수 버튼: 밝은 회색 배경 + 흰색 글씨 */
+        .btn-even {
+            background: #444;
+            color: #fff;
+        }
+
+        .num-btn:active { 
+            background: #0f0 !important; 
+            color: #000 !important; 
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+
+        .spacer { visibility: hidden; }
+
+        /* 화면이 작은 기기 대응 */
+        @media (max-height: 700px) {
+            .num-btn { font-size: 22px; }
+            #keypad { gap: 5px; padding: 8px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="status-bar">
+            <span id="scoreText">SCORE: 0 | STRIKES: 0</span>
+            <span id="levelText">SPEED: 1.5</span>
+        </div>
+        
+        <canvas id="gameCanvas" width="400" height="300"></canvas>
+        
+        <div id="keypad">
+            <button class="num-btn btn-odd" ontouchstart="handleInput(1)" onclick="handleInput(1)">1</button>
+            <button class="num-btn btn-even" ontouchstart="handleInput(2)" onclick="handleInput(2)">2</button>
+            <button class="num-btn btn-odd" ontouchstart="handleInput(3)" onclick="handleInput(3)">3</button>
+            <button class="num-btn btn-even" ontouchstart="handleInput(4)" onclick="handleInput(4)">4</button>
+            <button class="num-btn btn-odd" ontouchstart="handleInput(5)" onclick="handleInput(5)">5</button>
+            <button class="num-btn btn-even" ontouchstart="handleInput(6)" onclick="handleInput(6)">6</button>
+            <button class="num-btn btn-odd" ontouchstart="handleInput(7)" onclick="handleInput(7)">7</button>
+            <button class="num-btn btn-even" ontouchstart="handleInput(8)" onclick="handleInput(8)">8</button>
+            <button class="num-btn btn-odd" ontouchstart="handleInput(9)" onclick="handleInput(9)">9</button>
+            <div class="spacer"></div>
+            <button class="num-btn btn-even" ontouchstart="handleInput(0)" onclick="handleInput(0)">0</button>
+            <div class="spacer"></div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
