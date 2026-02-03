@@ -5,8 +5,7 @@ canvas.width = 400; canvas.height = 300;
 let score = 0, strikes = 0, combo = 0, state = "WAITING", swingTimer = 0, selectedBat = 'normal';
 let timer = 0, hitStopTimer = 0, praiseMsg = "";
 let ball = { x: 450, y: 180, num: 0, speed: 1.15, isMagic: false, type: 'normal', offset: 0 };
-let particles = [], fireParticles = [], audioCtx = null;
-let gameStarted = false;
+let fireParticles = [], audioCtx = null, gameStarted = false;
 
 function selectBat(type) {
     if (gameStarted) return;
@@ -26,34 +25,26 @@ function playSound(type) {
         osc.type = selectedBat === 'chicken' ? 'sawtooth' : 'triangle';
         osc.frequency.setValueAtTime(selectedBat === 'chicken' ? 450 : 523, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.2, 0.05);
     } else {
         osc.type = 'sine'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.1, 0.05);
     }
     osc.start(); osc.stop(audioCtx.currentTime + 0.3);
 }
 
 function drawField() {
-    // 하늘 및 구름
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 150);
     skyGrad.addColorStop(0, "#2980b9"); skyGrad.addColorStop(1, "#6dd5fa");
     ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, 400, 300);
     ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.beginPath(); ctx.arc(300, 50, 20, 0, Math.PI*2); ctx.arc(320, 50, 25, 0, Math.PI*2); ctx.arc(340, 50, 20, 0, Math.PI*2); ctx.fill();
-    
-    // 배경 건물 복구
+    ctx.beginPath(); ctx.arc(300, 50, 20, 0, Math.PI*2); ctx.arc(320, 50, 25, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = "#8d3030"; ctx.fillRect(0, 30, 90, 120); 
-    ctx.fillStyle = "#5d2020"; ctx.fillRect(10, 40, 20, 20); ctx.fillRect(40, 40, 20, 20);
+    ctx.fillStyle = "#5d2020"; ctx.fillRect(10, 40, 15, 15); ctx.fillRect(40, 40, 15, 15);
     ctx.fillStyle = "#a54040"; ctx.fillRect(320, 20, 80, 130);
-    
-    // 도로 및 자동차 복구
     ctx.fillStyle = "#333333"; ctx.fillRect(0, 150, 400, 150);
-    ctx.fillStyle = "#555"; ctx.fillRect(0, 150, 400, 5);
-    ctx.fillStyle = "#1a5276"; ctx.fillRect(230, 135, 75, 25); // 블루 자동차
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(245, 160, 8, 0, Math.PI*2); ctx.arc(290, 160, 8, 0, Math.PI*2); ctx.fill();
-    
-    // 배팅 박스
+    ctx.fillStyle = "#1a5276"; ctx.fillRect(230, 135, 75, 25);
+    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(245, 160, 7, 0, Math.PI*2); ctx.arc(290, 160, 7, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 3; ctx.strokeRect(65, 210, 40, 40);
 }
 
@@ -62,15 +53,12 @@ function drawPlayer(x, y) {
     ctx.fillStyle = "#34495e"; ctx.fillRect(-12, 0, 8, 24); ctx.fillRect(2, 0, 8, 24);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(-15, -30, 30, 30);
     ctx.fillStyle = "#ffdbac"; ctx.fillRect(-8, -46, 16, 16);
-    // 요청하신 파란 야구 모자
     ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3);
-
     ctx.save(); ctx.translate(0, -15);
     if (swingTimer > 0) {
         const progress = (15 - swingTimer) / 15;
         ctx.rotate(-Math.PI / 1.5 + (progress * Math.PI * 1.2));
     } else { ctx.rotate(-Math.PI / 1.5); }
-    
     if (selectedBat === 'normal') { ctx.fillStyle = "#d35400"; ctx.fillRect(-3, -45, 6, 45); }
     else if (selectedBat === 'chicken') { ctx.fillStyle = "#f1c40f"; ctx.fillRect(-4, -35, 8, 30); ctx.fillStyle = "#e74c3c"; ctx.fillRect(-6, -42, 12, 8); }
     else { ctx.fillStyle = "#795548"; ctx.fillRect(-2, -40, 4, 40); ctx.fillStyle = "#00bcd4"; ctx.fillRect(-15, -45, 30, 6); }
@@ -84,30 +72,37 @@ function createFire(x, y, intensity, isMega = false) {
 }
 
 function update() {
-    if (!gameStarted || hitStopTimer > 0) return;
-    if (swingTimer > 0) swingTimer--;
-    if (combo >= 15) createFire(80, 210, 3, true);
-    else if (combo >= 5) createFire(80, 210, 1, false);
-    fireParticles.forEach((p, i) => { p.y += p.vy; p.life -= 0.03; if(p.life <= 0) fireParticles.splice(i, 1); });
-
-    if (state === "PLAYING") {
-        ball.x -= ball.speed;
-        ball.offset = ball.isMagic ? Math.sin(ball.x * 0.05) * 30 : 0;
-        if (ball.x < 80) startMiss();
-    } else if (state === "HOMERUN") {
-        ball.x += 15; ball.y -= 12;
-        timer--; if (timer <= 0) resetBall();
+    if (!gameStarted) return;
+    
+    // 핵심 수정: hitStopTimer는 화면 연출만 막고, 타이머와 입자는 계속 흘러가게 함
+    if (hitStopTimer > 0) {
+        hitStopTimer--;
+    } else {
+        if (swingTimer > 0) swingTimer--;
+        if (state === "PLAYING") {
+            ball.x -= ball.speed;
+            ball.offset = ball.isMagic ? Math.sin(ball.x * 0.05) * 30 : 0;
+            if (ball.x < 80) startMiss();
+        } else if (state === "HOMERUN") {
+            ball.x += 15; ball.y -= 12;
+            timer--; if (timer <= 0) resetBall();
+        }
     }
+
+    // 화염은 멈춤 중에도 계속 움직여야 자연스러움
+    if (combo >= 5) createFire(80, 210, combo >= 15 ? 3 : 1, combo >= 15);
+    fireParticles.forEach((p, i) => { p.y += p.vy; p.life -= 0.03; if(p.life <= 0) fireParticles.splice(i, 1); });
 }
 
 function draw() {
-    ctx.clearRect(0,0,400,300);
+    ctx.clearRect(0, 0, 400, 300);
     drawField();
     fireParticles.forEach(p => {
         ctx.fillStyle = `rgba(255, ${Math.floor(200 * p.life)}, 0, ${p.life})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
     });
     drawPlayer(80, 230);
+    
     if (gameStarted && (state === "PLAYING" || state === "HOMERUN")) {
         ctx.save(); ctx.translate(0, ball.offset);
         let color = ball.type === 'giant' ? "#e67e22" : (ball.type === 'sparkle' ? `hsl(${Date.now()%360},100%,70%)` : (ball.isMagic ? "#9b59b6" : "white"));
@@ -118,9 +113,11 @@ function draw() {
         ctx.font = "bold 20px Arial"; ctx.textAlign="center";
         ctx.fillText(ball.num, ball.x, ball.y+7); ctx.restore();
     }
+    
     if (hitStopTimer > 0) {
-        ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.fillRect(0,0,400,300);
-        ctx.fillStyle = "#e74c3c"; ctx.font="bold 40px Arial"; ctx.textAlign="center"; ctx.fillText(praiseMsg, 200, 150);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(0, 0, 400, 300);
+        ctx.fillStyle = "#e74c3c"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center";
+        ctx.fillText(praiseMsg, 200, 150);
     }
 }
 
@@ -129,8 +126,14 @@ function handleInput(n) {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     swingTimer = 15;
     if (ball.num + n === 10) {
-        state = "HOMERUN"; timer = 50; score += 10; combo++; 
-        if (ball.isMagic) { hitStopTimer = 25; praiseMsg = "AMAZING!"; }
+        state = "HOMERUN"; 
+        timer = 50; 
+        score += 10; 
+        combo++;
+        if (ball.isMagic) { 
+            hitStopTimer = 30; // 연출 시간
+            praiseMsg = "AMAZING!"; 
+        }
         playSound('homerun'); updateUI();
     } else startMiss();
 }
@@ -144,6 +147,10 @@ function resetBall() {
     ball.type = ball.isMagic ? (r < 0.1 ? 'giant' : (r < 0.2 ? 'sparkle' : 'normal')) : 'normal';
     ball.speed *= 1.04; state = "PLAYING";
 }
-function updateUI() { document.getElementById("scoreText").innerText = score; document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; document.getElementById("levelText").innerText = ball.speed.toFixed(1); }
+function updateUI() { 
+    document.getElementById("scoreText").innerText = score; 
+    document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; 
+    document.getElementById("levelText").innerText = ball.speed.toFixed(1); 
+}
 function loop() { update(); draw(); requestAnimationFrame(loop); }
 loop();
