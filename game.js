@@ -4,8 +4,10 @@ canvas.width = 400; canvas.height = 300;
 
 let score = 0, strikes = 0, combo = 0, state = "WAITING", swingTimer = 0, selectedBat = 'normal';
 let timer = 0, hitStopTimer = 0, praiseMsg = "";
-let ball = { x: 450, y: 180, num: 0, speed: 1.9, isMagic: false, type: 'normal', offset: 0 };
+// 시작 속도를 220에서 176으로 20% 하향 조정했습니다.
+let ball = { x: 450, y: 180, num: 0, speed: 176, isMagic: false, type: 'normal', offset: 0 };
 let fireParticles = [], confetti = [], audioCtx = null, gameStarted = false;
+let lastTime = 0; 
 
 function selectBat(type) {
     if (gameStarted) return;
@@ -13,43 +15,35 @@ function selectBat(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     selectedBat = type;
     document.getElementById('selection-overlay').style.display = 'none';
-    gameStarted = true; state = "PLAYING"; resetBall();
+    gameStarted = true; state = "PLAYING"; 
+    lastTime = performance.now(); 
+    resetBall();
 }
 
-// 휘파람 및 타격음 통합 사운드 함수
 function playSound(type) {
     if (!audioCtx || audioCtx.state !== 'running') return;
-
     if (type === 'magicHit') {
-        // 여러 개의 휘파람 소리 생성
         for(let i=0; i<3; i++) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
             osc.type = 'sine';
-            const freq = 800 + (i * 400); // 다양한 높낮이
+            const freq = 800 + (i * 400);
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (i * 0.05));
             osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.1 + (i * 0.1));
-            osc.frequency.exponentialRampToValueAtTime(freq * 0.8, audioCtx.currentTime + 0.3 + (i * 0.1));
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
             osc.start(); osc.stop(audioCtx.currentTime + 0.6);
         }
     }
-
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
-
     if (type === 'homerun' || type === 'magicHit') {
-        if (selectedBat === 'chicken') {
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(900, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.1);
-        } else {
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
-        }
+        osc.type = (selectedBat === 'chicken') ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime((selectedBat === 'chicken' ? 900 : 600), audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
         gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
     } else {
@@ -59,15 +53,15 @@ function playSound(type) {
     osc.start(); osc.stop(audioCtx.currentTime + 0.3);
 }
 
-// 콘페티 생성 함수
 function createConfetti() {
-    for (let i = 0; i < 40; i++) {
+    confetti = []; 
+    for (let i = 0; i < 50; i++) {
         confetti.push({
             x: 80, y: 180,
-            vx: (Math.random() - 0.5) * 10,
-            vy: (Math.random() - 0.8) * 12,
+            vx: (Math.random() - 0.5) * 15,
+            vy: (Math.random() - 0.8) * 18,
             color: `hsl(${Math.random() * 360}, 100%, 50%)`,
-            size: Math.random() * 6 + 4,
+            size: Math.random() * 8 + 4,
             life: 1.0
         });
     }
@@ -106,25 +100,24 @@ function drawPlayer(x, y) {
     ctx.restore(); ctx.restore();
 }
 
-function update() {
+function update(dt) {
     if (!gameStarted) return;
     if (hitStopTimer > 0) {
-        hitStopTimer--;
+        hitStopTimer -= dt * 60; 
     } else {
-        if (swingTimer > 0) swingTimer--;
+        if (swingTimer > 0) swingTimer -= dt * 60;
         if (state === "PLAYING") {
-            ball.x -= ball.speed;
+            ball.x -= ball.speed * dt;
             ball.offset = ball.isMagic ? Math.sin(ball.x * 0.05) * 30 : 0;
             if (ball.x < 80) startMiss();
         } else if (state === "HOMERUN") {
-            ball.x += 15; ball.y -= 12;
-            timer--; if (timer <= 0) resetBall();
+            ball.x += 900 * dt; ball.y -= 700 * dt;
+            timer -= dt * 60; if (timer <= 0) resetBall();
         }
     }
-    // 입자 업데이트
-    fireParticles.forEach((p, i) => { p.y += p.vy; p.life -= 0.03; if(p.life <= 0) fireParticles.splice(i, 1); });
+    fireParticles.forEach((p, i) => { p.y += p.vy * dt * 60; p.life -= 0.03 * dt * 60; if(p.life <= 0) fireParticles.splice(i, 1); });
     confetti.forEach((c, i) => { 
-        c.x += c.vx; c.y += c.vy; c.vy += 0.4; c.life -= 0.015;
+        c.x += c.vx * dt * 60; c.y += c.vy * dt * 60; c.vy += 0.4 * dt * 60; c.life -= 0.015 * dt * 60;
         if(c.life <= 0) confetti.splice(i, 1); 
     });
 }
@@ -164,21 +157,17 @@ function handleInput(n) {
     swingTimer = 15;
     if (ball.num + n === 10) {
         if (ball.isMagic) {
-            score += 30; // 마구 보너스
-            praiseMsg = "NICE!";
-            hitStopTimer = 40;
-            createConfetti();
-            playSound('magicHit');
+            score += 30; praiseMsg = "NICE!"; hitStopTimer = 45;
+            createConfetti(); playSound('magicHit');
         } else {
-            score += 10;
-            playSound('homerun');
+            score += 10; playSound('homerun');
         }
-        combo++; updateUI();
-        state = "HOMERUN"; timer = 50;
+        combo++; updateUI(); state = "HOMERUN"; timer = 50;
     } else startMiss();
 }
 
 function startMiss() { strikes++; combo = 0; if (strikes >= 3) { alert("Game Over!"); location.reload(); } resetBall(); updateUI(); playSound('miss'); }
+
 function resetBall() { 
     ball.x = 400; ball.y = 180;
     ball.num = Math.floor(Math.random()*9)+1;
@@ -187,6 +176,19 @@ function resetBall() {
     ball.type = ball.isMagic ? (r < 0.1 ? 'giant' : (r < 0.2 ? 'sparkle' : 'normal')) : 'normal';
     ball.speed *= 1.05; state = "PLAYING";
 }
-function updateUI() { document.getElementById("scoreText").innerText = score; document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; document.getElementById("levelText").innerText = ball.speed.toFixed(1); }
-function loop() { update(); draw(); requestAnimationFrame(loop); }
-loop();
+
+function updateUI() { 
+    document.getElementById("scoreText").innerText = score; 
+    document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; 
+    document.getElementById("levelText").innerText = (ball.speed/100).toFixed(1); 
+}
+
+function loop(now) {
+    let dt = (now - lastTime) / 1000;
+    if (dt > 0.1) dt = 0.016; 
+    lastTime = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
