@@ -40,9 +40,10 @@ function drawField() {
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.beginPath(); ctx.arc(300, 50, 20, 0, Math.PI*2); ctx.arc(320, 50, 25, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = "#8d3030"; ctx.fillRect(0, 30, 90, 120); 
-    ctx.fillStyle = "#5d2020"; ctx.fillRect(10, 40, 15, 15); ctx.fillRect(40, 40, 15, 15);
+    ctx.fillStyle = "#5d2020"; ctx.fillRect(10, 45, 15, 15); ctx.fillRect(40, 45, 15, 15); ctx.fillRect(10, 75, 15, 15); ctx.fillRect(40, 75, 15, 15);
     ctx.fillStyle = "#a54040"; ctx.fillRect(320, 20, 80, 130);
     ctx.fillStyle = "#333333"; ctx.fillRect(0, 150, 400, 150);
+    ctx.fillStyle = "#f1c40f"; ctx.fillRect(180, 150, 5, 150);
     ctx.fillStyle = "#1a5276"; ctx.fillRect(230, 135, 75, 25);
     ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(245, 160, 7, 0, Math.PI*2); ctx.arc(290, 160, 7, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 3; ctx.strokeRect(65, 210, 40, 40);
@@ -53,7 +54,7 @@ function drawPlayer(x, y) {
     ctx.fillStyle = "#34495e"; ctx.fillRect(-12, 0, 8, 24); ctx.fillRect(2, 0, 8, 24);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(-15, -30, 30, 30);
     ctx.fillStyle = "#ffdbac"; ctx.fillRect(-8, -46, 16, 16);
-    ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3);
+    ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3); // 야구모자 복구
     ctx.save(); ctx.translate(0, -15);
     if (swingTimer > 0) {
         const progress = (15 - swingTimer) / 15;
@@ -73,8 +74,6 @@ function createFire(x, y, intensity, isMega = false) {
 
 function update() {
     if (!gameStarted) return;
-    
-    // 핵심 수정: hitStopTimer는 화면 연출만 막고, 타이머와 입자는 계속 흘러가게 함
     if (hitStopTimer > 0) {
         hitStopTimer--;
     } else {
@@ -88,8 +87,6 @@ function update() {
             timer--; if (timer <= 0) resetBall();
         }
     }
-
-    // 화염은 멈춤 중에도 계속 움직여야 자연스러움
     if (combo >= 5) createFire(80, 210, combo >= 15 ? 3 : 1, combo >= 15);
     fireParticles.forEach((p, i) => { p.y += p.vy; p.life -= 0.03; if(p.life <= 0) fireParticles.splice(i, 1); });
 }
@@ -102,7 +99,6 @@ function draw() {
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
     });
     drawPlayer(80, 230);
-    
     if (gameStarted && (state === "PLAYING" || state === "HOMERUN")) {
         ctx.save(); ctx.translate(0, ball.offset);
         let color = ball.type === 'giant' ? "#e67e22" : (ball.type === 'sparkle' ? `hsl(${Date.now()%360},100%,70%)` : (ball.isMagic ? "#9b59b6" : "white"));
@@ -110,14 +106,11 @@ function draw() {
         if (ball.isMagic) { ctx.shadowBlur = 15; ctx.shadowColor = color; }
         ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.type==='giant'?32:16, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = (ball.isMagic||ball.type==='giant')?"#fff":"#000";
-        ctx.font = "bold 20px Arial"; ctx.textAlign="center";
-        ctx.fillText(ball.num, ball.x, ball.y+7); ctx.restore();
+        ctx.font = "bold 20px Arial"; ctx.textAlign="center"; ctx.fillText(ball.num, ball.x, ball.y+7); ctx.restore();
     }
-    
     if (hitStopTimer > 0) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(0, 0, 400, 300);
-        ctx.fillStyle = "#e74c3c"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center";
-        ctx.fillText(praiseMsg, 200, 150);
+        ctx.fillStyle = "#e74c3c"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.fillText(praiseMsg, 200, 150);
     }
 }
 
@@ -126,14 +119,8 @@ function handleInput(n) {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     swingTimer = 15;
     if (ball.num + n === 10) {
-        state = "HOMERUN"; 
-        timer = 50; 
-        score += 10; 
-        combo++;
-        if (ball.isMagic) { 
-            hitStopTimer = 30; // 연출 시간
-            praiseMsg = "AMAZING!"; 
-        }
+        state = "HOMERUN"; timer = 50; score += 10; combo++;
+        if (ball.isMagic) { hitStopTimer = 30; praiseMsg = "AMAZING!"; }
         playSound('homerun'); updateUI();
     } else startMiss();
 }
@@ -147,10 +134,6 @@ function resetBall() {
     ball.type = ball.isMagic ? (r < 0.1 ? 'giant' : (r < 0.2 ? 'sparkle' : 'normal')) : 'normal';
     ball.speed *= 1.04; state = "PLAYING";
 }
-function updateUI() { 
-    document.getElementById("scoreText").innerText = score; 
-    document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; 
-    document.getElementById("levelText").innerText = ball.speed.toFixed(1); 
-}
+function updateUI() { document.getElementById("scoreText").innerText = score; document.getElementById("strikeText").innerText = "X ".repeat(strikes) || "READY"; document.getElementById("levelText").innerText = ball.speed.toFixed(1); }
 function loop() { update(); draw(); requestAnimationFrame(loop); }
 loop();

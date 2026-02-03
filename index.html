@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Street Baseball - Ultra Final</title>
+    <title>Street Baseball - Final Master</title>
     <style>
         :root { --neon-blue: #00d2ff; --neon-pink: #ff007f; --neon-gold: #ffcc00; }
         body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
-        #selection-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
+        #selection-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.96); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
         .bat-options { display: flex; gap: 15px; }
         .bat-card { background: #333; padding: 15px; border-radius: 20px; text-align: center; cursor: pointer; border: 3px solid #444; width: 100px; -webkit-tap-highlight-color: transparent; }
         .game-container { display: flex; flex-direction: row; align-items: center; gap: 15px; padding: 15px; background: #252525; border-radius: 30px; border: 2px solid #333; }
@@ -17,15 +17,18 @@
         canvas { background-color: #000; border-radius: 12px; width: 500px; height: auto; display: block; }
         #controls { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 8px; background: #111; border-radius: 15px; }
         .num-btn { width: 72px; height: 72px; border: 1px solid #333; border-radius: 10px; font-size: 28px; font-weight: bold; cursor: pointer; color: #fff; -webkit-tap-highlight-color: transparent; box-shadow: 0 4px 0 #000; }
-        .btn-odd { background: #d35400; } .btn-even { background: #2980b9; } .btn-zero { background: #c0392b; }
+        /* 요청하신 블랙배경+화이트숫자+홀짝색상반전 */
+        .btn-odd { background: #d35400; } 
+        .btn-even { background: #2980b9; } 
+        .btn-zero { background: #c0392b; }
         .num-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
-        .label { font-size: 9px; color: #888; }
+        .label { font-size: 9px; color: #888; text-transform: uppercase; }
         @media (max-width: 1000px) { .game-container { flex-direction: column; } canvas { width: 90vw; } }
     </style>
 </head>
 <body>
     <div id="selection-overlay">
-        <h2 style="color: var(--neon-gold);">SELECT YOUR BAT</h2>
+        <h2 style="color: var(--neon-gold); letter-spacing: 2px;">SELECT YOUR BAT</h2>
         <div class="bat-options">
             <div class="bat-card" onpointerdown="selectBat('normal')"><div>🏏</div><p>NORMAL</p></div>
             <div class="bat-card" onpointerdown="selectBat('chicken')"><div>🍗</div><p>CHICKEN</p></div>
