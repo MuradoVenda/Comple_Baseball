@@ -4,7 +4,8 @@ canvas.width = 400; canvas.height = 300;
 
 let score = 0, strikes = 0, combo = 0, state = "WAITING", swingTimer = 0, selectedBat = 'normal';
 let timer = 0, hitStopTimer = 0, praiseMsg = "";
-let ball = { x: 450, y: 180, num: 0, speed: 1.45, isMagic: false, type: 'normal', offset: 0 };
+// 초기 속도: 1.45 -> 1.9 (약 30% 상향)
+let ball = { x: 450, y: 180, num: 0, speed: 1.9, isMagic: false, type: 'normal', offset: 0 };
 let fireParticles = [], audioCtx = null, gameStarted = false;
 
 function selectBat(type) {
@@ -40,18 +41,27 @@ function playSound(type) {
 }
 
 function drawField() {
+    // 배경: 하늘
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 150);
     skyGrad.addColorStop(0, "#2980b9"); skyGrad.addColorStop(1, "#6dd5fa");
     ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, 400, 300);
+    // 구름
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.beginPath(); ctx.arc(300, 50, 20, 0, Math.PI*2); ctx.arc(320, 50, 25, 0, Math.PI*2); ctx.fill();
+    // 왼쪽 갈색 건물 (창문 4개 포함)
     ctx.fillStyle = "#8d3030"; ctx.fillRect(0, 30, 90, 120); 
-    ctx.fillStyle = "#5d2020"; ctx.fillRect(10, 45, 15, 15); ctx.fillRect(40, 45, 15, 15); ctx.fillRect(10, 75, 15, 15); ctx.fillRect(40, 75, 15, 15);
+    ctx.fillStyle = "#5d2020"; 
+    ctx.fillRect(10, 45, 15, 15); ctx.fillRect(40, 45, 15, 15); 
+    ctx.fillRect(10, 75, 15, 15); ctx.fillRect(40, 75, 15, 15);
+    // 오른쪽 빨간 건물
     ctx.fillStyle = "#a54040"; ctx.fillRect(320, 20, 80, 130);
+    // 도로 및 중앙 점선
     ctx.fillStyle = "#333333"; ctx.fillRect(0, 150, 400, 150);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(180, 150, 5, 150);
+    // 자동차 및 바퀴
     ctx.fillStyle = "#1a5276"; ctx.fillRect(230, 135, 75, 25);
     ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(245, 160, 7, 0, Math.PI*2); ctx.arc(290, 160, 7, 0, Math.PI*2); ctx.fill();
+    // 타석 박스
     ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 3; ctx.strokeRect(65, 210, 40, 40);
 }
 
@@ -60,7 +70,9 @@ function drawPlayer(x, y) {
     ctx.fillStyle = "#34495e"; ctx.fillRect(-12, 0, 8, 24); ctx.fillRect(2, 0, 8, 24);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(-15, -30, 30, 30);
     ctx.fillStyle = "#ffdbac"; ctx.fillRect(-8, -46, 16, 16);
+    // 파란색 야구 모자 (챙 포함)
     ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3);
+    
     ctx.save(); ctx.translate(0, -15);
     if (swingTimer > 0) {
         const progress = (15 - swingTimer) / 15;
@@ -81,7 +93,7 @@ function createFire(x, y, intensity, isMega = false) {
 function update() {
     if (!gameStarted) return;
     if (hitStopTimer > 0) {
-        hitStopTimer--;
+        hitStopTimer--; // iPad 멈춤 방지를 위한 타이머 업데이트
     } else {
         if (swingTimer > 0) swingTimer--;
         if (state === "PLAYING") {
