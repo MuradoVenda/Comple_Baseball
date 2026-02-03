@@ -3,40 +3,51 @@ const ctx = canvas.getContext("2d");
 canvas.width = 400; canvas.height = 300;
 
 let score = 0, strikes = 0, combo = 0, state = "WAITING", swingTimer = 0, selectedBat = 'normal';
-let timer = 0, comboTextTimer = 0, hitStopTimer = 0, praiseMsg = "", initialSpeed = 1.15;
-let ball = { x: 400, y: 180, num: 0, speed: initialSpeed, isMagic: false, type: 'normal', offset: 0 };
+let timer = 0, hitStopTimer = 0, praiseMsg = "", initialSpeed = 1.15;
+let ball = { x: 450, y: 180, num: 0, speed: initialSpeed, isMagic: false, type: 'normal', offset: 0 };
 let particles = [], fireParticles = [], audioCtx = null;
 
+// 아이패드/iOS 호환용 배트 선택 및 게임 시작
 function selectBat(type) {
+    // 1. 사운드 엔진 활성화 (사용자 터치 시점에 수행)
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    // 2. 상태 변경
     selectedBat = type;
     document.getElementById('selection-overlay').style.display = 'none';
+    
+    // 3. 게임 엔진 강제 가동
     state = "PLAYING";
     resetBall();
 }
 
 function playSound(type) {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
+    
     if (type === 'homerun') {
         if (selectedBat === 'chicken') {
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(450, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.25);
             gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         } else {
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(523, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1046, audioCtx.currentTime + 0.2);
+            osc.type = 'triangle'; 
+            osc.frequency.setValueAtTime(523, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
         }
     } else if (type === 'miss') {
         osc.type = 'sine'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.4);
         gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
     }
-    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
 }
 
 function createFire(x, y, intensity, isMega = false) {
@@ -63,18 +74,15 @@ function drawField() {
 
 function drawPlayer(x, y) {
     ctx.save(); ctx.translate(x, y);
-    // 다리 & 몸통
     ctx.fillStyle = "#34495e"; ctx.fillRect(-12, 0, 8, 24); ctx.fillRect(2, 0, 8, 24);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(-15, -30, 30, 30);
-    // 얼굴
     ctx.fillStyle = "#ffdbac"; ctx.fillRect(-8, -46, 16, 16);
     
-    // 야구 모자 복구 (Blue Cap)
+    // 모자 복구
     ctx.fillStyle = "#2980b9";
-    ctx.fillRect(-10, -52, 20, 8); // 모자 윗부분
-    ctx.fillRect(0, -52, 18, 3);   // 모자 챙
+    ctx.fillRect(-10, -52, 20, 8);
+    ctx.fillRect(0, -52, 18, 3);
 
-    // 배트 회전 로직
     ctx.save(); ctx.translate(0, -15);
     if (swingTimer > 0) {
         const progress = (15 - swingTimer) / 15;
@@ -90,14 +98,18 @@ function drawPlayer(x, y) {
 }
 
 function update() {
+    if (state === "WAITING") return; // 선택 전에는 정지
     if (hitStopTimer > 0) { hitStopTimer--; return; }
     if (swingTimer > 0) swingTimer--;
+    
     if (combo >= 15) createFire(80, 210, 3, true);
     else if (combo >= 5) createFire(80, 210, 1, false);
+    
     fireParticles.forEach((p, i) => {
         p.x += p.vx; p.y += p.vy; p.life -= 0.025;
         if(p.life <= 0) fireParticles.splice(i, 1);
     });
+
     if (state === "PLAYING") {
         ball.x -= ball.speed;
         ball.offset = ball.isMagic ? Math.sin(ball.x * 0.05) * 30 : 0;
@@ -135,13 +147,12 @@ function draw() {
 
 function handleInput(n) {
     if (state !== "PLAYING" || hitStopTimer > 0) return;
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     swingTimer = 15;
     if (ball.num + n === 10) {
         state = "HOMERUN"; timer = 50; score += 10; combo++; 
         if (ball.isMagic) { hitStopTimer = 30; praiseMsg = "AMAZING!"; }
         playSound('homerun'); updateUI();
-        for(let i=0; i<30; i++) particles.push({x: 100, y: 180, vx: Math.random()*10-5, vy: -Math.random()*10});
     } else startMiss();
 }
 
