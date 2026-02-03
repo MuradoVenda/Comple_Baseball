@@ -21,14 +21,25 @@ function playSound(type) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
+
     if (type === 'homerun') {
-        osc.type = selectedBat === 'chicken' ? 'sawtooth' : 'triangle';
-        osc.frequency.setValueAtTime(selectedBat === 'chicken' ? 450 : 523, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-        gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.2, 0.05);
+        if (selectedBat === 'chicken') {
+            // [치킨] 삐익-! 고음
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        } else {
+            // [일반/곡괭이] 경쾌한 따악!
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        }
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
     } else {
-        osc.type = 'sine'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.1, 0.05);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.05, 0.03);
     }
     osc.start(); osc.stop(audioCtx.currentTime + 0.3);
 }
@@ -54,7 +65,7 @@ function drawPlayer(x, y) {
     ctx.fillStyle = "#34495e"; ctx.fillRect(-12, 0, 8, 24); ctx.fillRect(2, 0, 8, 24);
     ctx.fillStyle = "#f1c40f"; ctx.fillRect(-15, -30, 30, 30);
     ctx.fillStyle = "#ffdbac"; ctx.fillRect(-8, -46, 16, 16);
-    ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3); // 야구모자 복구
+    ctx.fillStyle = "#2980b9"; ctx.fillRect(-10, -52, 20, 8); ctx.fillRect(0, -52, 18, 3);
     ctx.save(); ctx.translate(0, -15);
     if (swingTimer > 0) {
         const progress = (15 - swingTimer) / 15;
@@ -75,7 +86,7 @@ function createFire(x, y, intensity, isMega = false) {
 function update() {
     if (!gameStarted) return;
     if (hitStopTimer > 0) {
-        hitStopTimer--;
+        hitStopTimer--; // 멈춤 시간 동안에도 루프는 계속 돌아야 iPad 프리징이 안생김
     } else {
         if (swingTimer > 0) swingTimer--;
         if (state === "PLAYING") {
@@ -119,9 +130,9 @@ function handleInput(n) {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     swingTimer = 15;
     if (ball.num + n === 10) {
-        state = "HOMERUN"; timer = 50; score += 10; combo++;
+        score += 10; combo++; updateUI(); playSound('homerun');
+        state = "HOMERUN"; timer = 50;
         if (ball.isMagic) { hitStopTimer = 30; praiseMsg = "AMAZING!"; }
-        playSound('homerun'); updateUI();
     } else startMiss();
 }
 
